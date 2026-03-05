@@ -1,0 +1,49 @@
+import numpy as np
+from tensorflow.keras.applications.vgg16 import VGG16, preprocess_input
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from tensorflow.keras.models import Model
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.layers import Input, Dense, LSTM, Embedding, Dropout, add
+from tensorflow.keras.models import Model
+
+# Load pretrained VGG16 model
+base_model = VGG16()
+model = Model(inputs=base_model.inputs, outputs=base_model.layers[-2].output)
+
+# Extract features from image
+def extract_features(image_path):
+    image = load_img(image_path, target_size=(224,224))
+    image = img_to_array(image)
+    image = image.reshape((1,224,224,3))
+    image = preprocess_input(image)
+    feature = model.predict(image, verbose=0)
+    return feature
+
+# Example caption generation function
+def generate_caption(photo_features, tokenizer, max_length, caption_model):
+    
+    text = "startseq"
+    
+    for i in range(max_length):
+        
+        sequence = tokenizer.texts_to_sequences([text])[0]
+        sequence = pad_sequences([sequence], maxlen=max_length)
+        
+        yhat = caption_model.predict([photo_features, sequence], verbose=0)
+        yhat = np.argmax(yhat)
+        
+        word = tokenizer.index_word.get(yhat)
+        
+        if word is None:
+            break
+            
+        text += " " + word
+        
+        if word == "endseq":
+            break
+    
+    return text
+
+# Example usage
+photo = extract_features("example.jpg")
+print("Caption:", generate_caption(photo, tokenizer, max_length, caption_model))
